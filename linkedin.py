@@ -20,9 +20,16 @@ class Linkedin:
             if not self.isLoggedIn():
                 self.driver.get("https://www.linkedin.com/login?trk=guest_homepage-basic_nav-header-signin")
                 utils.prYellow("🔄 Trying to log in Linkedin...")
-                list = self.driver.find_element("xpath",'//*[contains(text(),' + config.email + ')]')
-                time.sleep(3)
-                if list.size() == 0:
+
+                try:
+                    self.driver.find_element("xpath",'//*[contains(text(),' + config.email +')]')
+                    time.sleep(2)
+                    self.driver.find_element("id","password").send_keys(config.password)
+                    time.sleep(2)
+                    self.driver.find_element("xpath",'//button[@type="submit"]').click()
+                    time.sleep(30)
+                except:   
+                    time.sleep(3)
                     try:    
                         self.driver.find_element("id","username").send_keys(config.email)
                         time.sleep(2)
@@ -32,15 +39,6 @@ class Linkedin:
                         time.sleep(30)
                     except:
                         utils.prRed("❌ Couldn't log in Linkedin by using Chrome. Please check your Linkedin credentials on config files line 7 and 8.")
-                else:
-                    try:    
-                        self.driver.find_element("id","password").send_keys(config.password)
-                        time.sleep(2)
-                        self.driver.find_element("xpath",'//button[@type="submit"]').click()
-                        time.sleep(30)
-                    except:
-                        utils.prRed("❌ Couldn't log in Linkedin by using Chrome. Please check your Linkedin credentials on config files line 7 and 8.")
-
                 self.saveCookies()
             # start application
             self.linkJobApply()
