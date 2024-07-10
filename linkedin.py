@@ -20,15 +20,26 @@ class Linkedin:
             if not self.isLoggedIn():
                 self.driver.get("https://www.linkedin.com/login?trk=guest_homepage-basic_nav-header-signin")
                 utils.prYellow("🔄 Trying to log in Linkedin...")
-                try:    
-                    self.driver.find_element("id","username").send_keys(config.email)
-                    time.sleep(2)
-                    self.driver.find_element("id","password").send_keys(config.password)
-                    time.sleep(2)
-                    self.driver.find_element("xpath",'//button[@type="submit"]').click()
-                    time.sleep(30)
-                except:
-                    utils.prRed("❌ Couldn't log in Linkedin by using Chrome. Please check your Linkedin credentials on config files line 7 and 8.")
+                list = self.driver.find_element("xpath",'//*[contains(text(),' + config.email + ')]')
+                time.sleep(3)
+                if list.size() == 0:
+                    try:    
+                        self.driver.find_element("id","username").send_keys(config.email)
+                        time.sleep(2)
+                        self.driver.find_element("id","password").send_keys(config.password)
+                        time.sleep(2)
+                        self.driver.find_element("xpath",'//button[@type="submit"]').click()
+                        time.sleep(30)
+                    except:
+                        utils.prRed("❌ Couldn't log in Linkedin by using Chrome. Please check your Linkedin credentials on config files line 7 and 8.")
+                else:
+                    try:    
+                        self.driver.find_element("id","password").send_keys(config.password)
+                        time.sleep(2)
+                        self.driver.find_element("xpath",'//button[@type="submit"]').click()
+                        time.sleep(30)
+                    except:
+                        utils.prRed("❌ Couldn't log in Linkedin by using Chrome. Please check your Linkedin credentials on config files line 7 and 8.")
 
                 self.saveCookies()
             # start application
@@ -120,7 +131,8 @@ class Linkedin:
                         if easyApplybutton is not False:
                             easyApplybutton.click()
                             time.sleep(random.uniform(1, constants.botSpeed))
-                            
+
+
                             try:
                                 self.chooseResume()
                                 self.driver.find_element(By.CSS_SELECTOR, "button[aria-label='Submit application']").click()
@@ -132,15 +144,23 @@ class Linkedin:
 
                             except:
                                 try:
+                                    self.driver.find_element(By.CSS_SELECTOR, "input[aria-describedby$='phoneNumber-nationalNumber-error']").send_keys(config.phoneNumber)
+                                    time.sleep(2)
                                     self.driver.find_element(By.CSS_SELECTOR,"button[aria-label='Continue to next step']").click()
-                                    time.sleep(random.uniform(1, constants.botSpeed))
+                                    time.sleep(20)
+                                except:
+                                    utils.prRed("❌ Could not find element 'phoneNumber' to enter your phone. Please check linkedin.py line 134-141 to make sure tags are set correctly")
+
+
+
+                                try:
                                     self.chooseResume()
                                     comPercentage = self.driver.find_element(By.XPATH,'html/body/div[3]/div/div/div[2]/div/div/span').text
                                     percenNumber = int(comPercentage[0:comPercentage.index("%")])
                                     result = self.applyProcess(percenNumber,offerPage)
                                     lineToWrite = jobProperties + " | " + result
                                     self.displayWriteResults(lineToWrite)
-                                
+
                                 except Exception: 
                                     self.chooseResume()
                                     lineToWrite = jobProperties + " | " + "* 🥵 Cannot apply to this Job! " +str(offerPage)
@@ -157,17 +177,28 @@ class Linkedin:
 
     def chooseResume(self):
         try:
-            self.driver.find_element(
-                By.CLASS_NAME, "jobs-document-upload__title--is-required")
-            resumes = self.driver.find_elements(
-                By.XPATH, "//div[contains(@class, 'ui-attachment--pdf')]")
-            if (len(resumes) == 1 and resumes[0].get_attribute("aria-label") == "Select this resume"):
-                resumes[0].click()
-            elif (len(resumes) > 1 and resumes[config.preferredCv-1].get_attribute("aria-label") == "Select this resume"):
-                resumes[config.preferredCv-1].click()
-            elif (type(len(resumes)) != int):
+            if os.path.exists(config.cvPath):
+                time.sleep(5)
+                utils.prYellow("Attempting to select ")
+                self.driver.find_element(By.CLASS_NAME, "jobs-document-upload__title--is-required")
+                self.driver.find_element(By.CSS_SELECTOR, "input[type='file']").send_keys(config.cvPath)
+                time.sleep(5)
+                self.driver.find_element(By.CSS_SELECTOR, "button[aria-label='Continue to next step']").click()
+            else:
                 utils.prRed(
-                    "❌ No resume has been selected please add at least one resume to your Linkedin account.")
+                     "❌ No resume has been selected please add at least one resume to your Linkedin account.")
+                
+            # self.driver.find_element(
+            #     By.CLASS_NAME, "jobs-document-upload__title--is-required")
+            # resumes = self.driver.find_elements(
+            #     By.XPATH, "//div[contains(@class, 'ui-attachment--pdf')]")
+            # if (len(resumes) == 1 and resumes[0].get_attribute("aria-label") == "Select this resume"):
+            #     resumes[0].click()
+            # elif (len(resumes) > 1 and resumes[config.preferredCv-1].get_attribute("aria-label") == "Select this resume"):
+            #     resumes[config.preferredCv-1].click()
+            # elif (type(len(resumes)) != int):
+            #     utils.prRed(
+            #         "❌ No resume has been selected please add at least one resume to your Linkedin account.")
         except:
             pass
 
@@ -177,7 +208,7 @@ class Linkedin:
         jobLocation = ""
 
         try:
-            jobTitle = self.driver.find_element(By.XPATH, "//h1[contains(@class, 'job-title')]").get_attribute("innerHTML").strip()
+            jobTitle = self.driver.find_element(By.XPATH, "//h1[contains(@class, 't-24 t-bold inline')]").get_attribute("innerHTML").strip()
             res = [blItem for blItem in config.blackListTitles if (blItem.lower() in jobTitle.lower())]
             if (len(res) > 0):
                 jobTitle += "(blacklisted title: " + ' '.join(res) + ")"
