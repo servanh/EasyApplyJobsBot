@@ -287,7 +287,7 @@ class Linkedin:
 
         if len(new_data) > 0:
             self.writeToCSV()
-            status = dedupe.dedupe
+            status = dedupe.main()
             if status:
                 utils.prGreen("Successfully removed duplicates")
             else:

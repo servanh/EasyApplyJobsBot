@@ -5,7 +5,7 @@ import os
 
 
 ## Removes duplicates and returns boolean for if it succeeded or not
-def dedupe():
+def main():
     try:
 
         os.rename('linkedin_questions.csv', 'linkedin_questions_cleaning.csv')
@@ -16,3 +16,6 @@ def dedupe():
         return True
     except:
         return False
+    
+if __name__ == "__main__":
+    print(main())
