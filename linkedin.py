@@ -1,6 +1,9 @@
 import time,math,random,os
 import utils,constants,config
 import pickle, hashlib
+import csv
+import re
+import dedupe
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
@@ -8,7 +11,14 @@ from selenium.webdriver.common.by import By
 from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.chrome.service import Service as ChromeService
 
+csv_headers = ['question','response']
+seen_questions = set()
+new_data = []
+dirname = os.path.dirname(__file__)
+fileName = os.path.join(dirname, 'linkedin_questions.csv')
+
 class Linkedin:
+
     def __init__(self):
             utils.prYellow("🤖 Thanks for using Easy Apply Jobs bot, for more information you can visit our site - www.automated-bots.com")
             utils.prYellow("🌐 Bot will run in Chrome browser and log in Linkedin for you.")
@@ -142,10 +152,11 @@ class Linkedin:
 
                             except:
                                 try:
+                                    # '$=' means that the property value must end with 'phoneNumber-nationalNumber-error'
                                     self.driver.find_element(By.CSS_SELECTOR, "input[aria-describedby$='phoneNumber-nationalNumber-error']").send_keys(config.phoneNumber)
                                     time.sleep(2)
                                     self.driver.find_element(By.CSS_SELECTOR,"button[aria-label='Continue to next step']").click()
-                                    time.sleep(20)
+                                    time.sleep(5)
                                 except:
                                     utils.prRed("❌ Could not find element 'phoneNumber' to enter your phone. Please check linkedin.py line 134-141 to make sure tags are set correctly")
 
@@ -173,6 +184,7 @@ class Linkedin:
         
         utils.donate(self)
 
+    # Updated to find the input element directly and append the path. 07-10-2024
     def chooseResume(self):
         try:
             if os.path.exists(config.cvPath):
@@ -185,18 +197,6 @@ class Linkedin:
             else:
                 utils.prRed(
                      "❌ No resume has been selected please add at least one resume to your Linkedin account.")
-                
-            # self.driver.find_element(
-            #     By.CLASS_NAME, "jobs-document-upload__title--is-required")
-            # resumes = self.driver.find_elements(
-            #     By.XPATH, "//div[contains(@class, 'ui-attachment--pdf')]")
-            # if (len(resumes) == 1 and resumes[0].get_attribute("aria-label") == "Select this resume"):
-            #     resumes[0].click()
-            # elif (len(resumes) > 1 and resumes[config.preferredCv-1].get_attribute("aria-label") == "Select this resume"):
-            #     resumes[config.preferredCv-1].click()
-            # elif (type(len(resumes)) != int):
-            #     utils.prRed(
-            #         "❌ No resume has been selected please add at least one resume to your Linkedin account.")
         except:
             pass
 
@@ -250,15 +250,65 @@ class Linkedin:
             EasyApplyButton = False
 
         return EasyApplyButton
+    
+    def collectQuestions(self):
+        questions = []
+        try:
+            divElements = self.driver.find_elements(By.CSS_SELECTOR, "div[class^='jobs-easy-apply-form-section__grouping']")
+            time.sleep(2)
+            for element in divElements:
+                try:
+                    rawElement = element.find_element(By.CSS_SELECTOR,"label[class$='input--label']").get_attribute('innerHTML').strip()
+                    time.sleep(2)
+                    cleanedQuestion = re.sub(r'[^A-Za-z0-9\? ]+', '', rawElement)
+                    questions.append(cleanedQuestion)
+                except:
+                    rawElement = questions.append(element.find_element(By.CSS_SELECTOR,"span[class='visually-hidden']").get_attribute('innerHTML').strip())
+                    time.sleep(2)
+                    cleanedQuestion = re.sub(r'[^A-Za-z0-9\? ]+', '', rawElement)
+                    questions.append(cleanedQuestion)
+
+        except:
+            utils.prRed("Could not find any questions to collect")
+        if len(questions) > 0:
+            questionsDict = dict.fromkeys(questions, None)
+            header1, header2 = csv_headers
+            data_to_write = [{header1: q, header2: a} for q, a in questionsDict.items()]
+            self.saveQuestions(data_to_write)
+        
+    def saveQuestions(self, questions:list):
+
+        if not os.path.exists(fileName):
+            os.mknod(fileName)
+                     
+        #add worry about dupes, later
+        for row in questions:
+            new_data.append(row)
+
+        if len(new_data) > 0:
+            self.writeToCSV()
+            status = dedupe.dedupe
+            if status:
+                utils.prGreen("Successfully removed duplicates")
+            else:
+                utils.prRed("Error when attempting to remove duplicates from 'linkedin_questions.csv'")
+        else:
+            utils.prRed("No new questions found, only dupes, moving on!")
+
+    def writeToCSV(self):
+        with open(fileName, mode="a", newline='') as file:
+            writer = csv.DictWriter(file, fieldnames=csv_headers)
+            for row in new_data:
+                writer.writerow(row)
 
     def applyProcess(self, percentage, offerPage):
         applyPages = math.floor(100 / percentage) - 2 
         result = ""
-        for pages in range(applyPages):  
-            self.driver.find_element(By.CSS_SELECTOR, "button[aria-label='Continue to next step']").click()
 
         self.driver.find_element( By.CSS_SELECTOR, "button[aria-label='Review your application']").click()
         time.sleep(random.uniform(1, constants.botSpeed))
+
+        self.collectQuestions()
 
         if config.followCompanies is False:
             try:
