@@ -172,7 +172,7 @@ test.py
 geckodriver.log
 *.txt
 *.exe
-linkedin_questions.csv
+linkedin_questions_copy.csv
 
 # premium files
 angelco.py
